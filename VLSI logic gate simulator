@@ -1,0 +1,211 @@
+import React, { useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Play, Eraser, Info, Layers, Cpu } from "lucide-react";
+import { motion } from "framer-motion";
+
+// ——————————————————————————————————————————————
+// VLSI Logic Gate Simulator (Client-side)
+// Sivaprasath-ukku: Tamil comments kuduthirukken ❤️
+// Features:
+// 1) Basic gates: AND, OR, NOT, NAND, NOR, XOR, XNOR
+// 2) 2–4 inputs (NOT gate forces 1 input)
+// 3) Toggle inputs visually and see live output
+// 4) Auto-generated Truth Table
+// 5) Boolean Expression evaluator: e.g., (A & B) | !C, A ^ B, ~(A & B)
+// 6) Small preset circuits
+// ——————————————————————————————————————————————
+
+// ——— Utility: Boolean operations ———
+const ops = {
+  AND: (...bits: number[]) => bits.reduce((a, b) => a & b, 1),
+  OR: (...bits: number[]) => bits.reduce((a, b) => a | b, 0),
+  NOT: (b: number) => (b ? 0 : 1),
+  NAND: (...bits: number[]) => (bits.reduce((a, b) => a & b, 1) ? 0 : 1),
+  NOR: (...bits: number[]) => (bits.reduce((a, b) => a | b, 0) ? 0 : 1),
+  XOR: (...bits: number[]) => bits.reduce((a, b) => a ^ b, 0),
+  XNOR: (...bits: number[]) => (bits.reduce((a, b) => a ^ b, 0) ? 0 : 1),
+};
+
+type Gate = keyof typeof ops;
+const GATES: Gate[] = ["AND", "OR", "NOT", "NAND", "NOR", "XOR", "XNOR"];
+
+// ——— Generate all binary rows for n inputs ———
+function genRows(n: number): number[][] {
+  const rows: number[][] = [];
+  const total = 1 << n;
+  for (let i = 0; i < total; i++) {
+    const row: number[] = [];
+    for (let j = n - 1; j >= 0; j--) row.push((i >> j) & 1);
+    rows.push(row);
+  }
+  return rows;
+}
+
+// ——— Safe Boolean expression parser ———
+// Allowed tokens: A..Z vars, 0,1, ! ~ ( ) & | ^  +  ·  ⊕  (and whitespace)
+// Map to JS-like evaluation on bits.
+function evalExpr(expr: string, env: Record<string, number>): number {
+  // Replace unicode-ish operators
+  let s = expr
+    .replace(/·|∧/g, "&")
+    .replace(/\+/g, "|")
+    .replace(/⊕/g, "^")
+    .replace(/~/g, "!")
+    .replace(/\s+/g, "");
+
+  // Shunting-yard to RPN
+  const out: string[] = [];
+  const stack: string[] = [];
+  const prec: Record<string, number> = { "!": 3, "&": 2, "^": 1.5, "|": 1 };
+  const rightAssoc = new Set(["!"]); // unary NOT
+
+  const tokens = s.match(/(!|\(|\)|&|\^|\||[A-Za-z]|0|1)/g);
+  if (!tokens) throw new Error("Invalid expression");
+
+  for (const t of tokens) {
+    if (/^[A-Za-z]$/.test(t) || t === "0" || t === "1") {
+      out.push(t);
+    } else if (t === "!") {
+      stack.push(t);
+    } else if (t === "&" || t === "|" || t === "^") {
+      while (
+        stack.length &&
+        (stack[stack.length - 1] in prec) &&
+        ((rightAssoc.has(t) && prec[t] < prec[stack[stack.length - 1]]) ||
+          (!rightAssoc.has(t) && prec[t] <= prec[stack[stack.length - 1]]))
+      ) {
+        out.push(stack.pop() as string);
+      }
+      stack.push(t);
+    } else if (t === "(") {
+      stack.push(t);
+    } else if (t === ")") {
+      while (stack.length && stack[stack.length - 1] !== "(") out.push(stack.pop() as string);
+      if (stack.pop() !== "(") throw new Error("Mismatched parentheses");
+    }
+  }
+  while (stack.length) {
+    const op = stack.pop() as string;
+    if (op === "(" || op === ")") throw new Error("Mismatched parentheses");
+    out.push(op);
+  }
+
+  // Evaluate RPN
+  const st: number[] = [];
+  for (const t of out) {
+    if (/^[A-Za-z]$/.test(t)) {
+      const v = env[t.toUpperCase()];
+      if (v !== 0 && v !== 1) throw new Error(`Unknown var ${t}`);
+      st.push(v);
+    } else if (t === "0" || t === "1") {
+      st.push(Number(t));
+    } else if (t === "!") {
+      const a = st.pop();
+      if (a === undefined) throw new Error("Bad NOT");
+      st.push(a ? 0 : 1);
+    } else if (t === "&" || t === "|" || t === "^") {
+      const b = st.pop();
+      const a = st.pop();
+      if (a === undefined || b === undefined) throw new Error("Bad binary op");
+      if (t === "&") st.push(a & b);
+      else if (t === "|") st.push(a | b);
+      else st.push(a ^ b);
+    } else {
+      throw new Error("Unknown token in RPN");
+    }
+  }
+  if (st.length !== 1) throw new Error("Evaluation error");
+  return st[0];
+}
+
+// ——— UI helpers ———
+const GateBadge = ({ gate }: { gate: Gate }) => (
+  <Badge className="text-xs px-2 py-1 rounded-2xl">{gate}</Badge>
+);
+
+const InputToggle = ({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+}) => (
+  <motion.button
+    whileTap={{ scale: 0.95 }}
+    className={`px-4 py-2 rounded-2xl shadow-sm border font-medium ${
+      value ? "bg-green-100 border-green-300" : "bg-slate-100 border-slate-300"
+    }`}
+    onClick={() => onChange(value ? 0 : 1)}
+  >
+    {label}: {value}
+  </motion.button>
+);
+
+function TruthTable({
+  nInputs,
+  headerLabels,
+  compute,
+}: {
+  nInputs: number;
+  headerLabels: string[];
+  compute: (row: number[]) => number;
+}) {
+  const rows = useMemo(() => genRows(nInputs), [nInputs]);
+  return (
+    <div className="overflow-auto rounded-2xl border">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            {headerLabels.map((h) => (
+              <TableHead key={h}>{h}</TableHead>
+            ))}
+            <TableHead>Y</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((r, i) => (
+            <TableRow key={i}>
+              {r.map((b, j) => (
+                <TableCell key={j}>{b}</TableCell>
+              ))}
+              <TableCell className="font-semibold">{compute(r)}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
+// ——— Presets ———
+const PRESETS: { name: string; gate?: Gate; inputs?: number; expr?: string; labels?: string[] }[] = [
+  { name: "Half Adder – Sum (A ^ B)", expr: "A ^ B", labels: ["A", "B"] },
+  { name: "Half Adder – Carry (A · B)", expr: "A & B", labels: ["A", "B"] },
+  { name: "3-input Majority", expr: "(A & B) | (A & C) | (B & C)", labels: ["A", "B", "C"] },
+  { name: "Parity (A ⊕ B ⊕ C ⊕ D)", expr: "A ^ B ^ C ^ D", labels: ["A", "B", "C", "D"] },
+  { name: "Simple NAND Gate", gate: "NAND", inputs: 2 },
+];
+
+export default function VlsiLogicGateSimulator() {
+  const [gate, setGate] = useState<Gate>("AND");
+  const [nInputs, setNInputs] = useState<number>(2);
+  const [inputs, setInputs] = useState<number[]>([0, 0, 0, 0]);
+  const [expr, setExpr] = useState<string>("");
+  const [labels, setLabels] = useState<string[]>(["A", "B", "C", "D"]);
+  const [tab, setTab] = useState<string>("gate");
+
+  // NOT gate-ku 1 input forced
+  const effectiveInputs = gate === "NOT" && tab === "gate" ? 1 : nInputs;
+
+  const headerLabels = useMemo(() => labels.slice(0, effectiveInputs), [labels, effectiveInputs]);
+
+  const output = useMemo(() => {
+    c
