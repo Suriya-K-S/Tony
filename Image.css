@@ -1,0 +1,71 @@
+Sure—here’s a ready-to-use SVG file content you can copy into a .svg file and then export to PNG at your desired size. It follows the five-section layout described, with blue left cards and right-side flow details.
+
+Copy this into a file named cleaner-city-flow.svg and open in Inkscape/Illustrator/Figma, then export as PNG.
+
+
+      .title{ font-family: Arial, sans-serif; font-weight:700; font-size:28px; fill:#0b2a4a; }
+      .subtitle{ font-family: Arial, sans-serif; font-size:14px; fill:#d9e6ff; }
+      .body{ font-family: Arial, sans-serif; font-size:14px; fill:#0b2a4a; }
+      .card{ fill:url(#blue); rx:12; }
+      .arrow{ stroke:#a9c4f0; stroke-width:2; fill:none; marker-end:url(#arrowhead); }
+      .icon{ font-family: FontAwesome; }
+      .section{ font-family: Arial, sans-serif; }
+      .rightLabel{ fill:#0b2a4a; font-weight:500; font-size:14px; }
+
+  Cleaner Cities, Smarter Management, Healthier Workers
+
+    Report Waste
+    Users take a photo of the waste area
+
+      📍
+      Send location via app
+
+      🏛️
+      Authorities receive report
+
+    Live Truck Tracking
+    Track waste collection trucks in real time
+
+      ⏰
+      Monitor collection schedule
+
+      🔧
+      Manage large waste generation in advance
+
+    Pre-Book Collection
+    Book vehicle for parties/events
+
+      🗓️
+      Book vehicle for parties/events
+
+      ⚡
+      Get quick resolution from authorities
+
+    Complaint Registration
+    Post issues
+
+      ⚡
+      Get quick resolution from authorities
+
+      🎖️
+      Earn points
+
+    Score Points for Proper
+    Get recognition & rewards
+
+      🏅
+      Get recognition & rewards
+
+      🎁
+      Redeem rewards
+
+    Cleaner, Smarter, Healthier City
+
+
+
+Notes:
+You can adjust the width/height by editing the SVG’s viewBox and the outer SVG attributes.
+Replace emoji with proper icons if you prefer vector icons (in Inkscape/Illustrator you can swap text icons with inline SVG icons).
+If you want a PNG export at a specific resolution, open the SVG in your editor and export PNG at 1080x1350, 1920x1080, etc.
+
+Would you like me to tailor the SVG with your exact brand colors and typography, or generate a PNG directly from this SVG at a chosen resolution? If you share width, height, and hex color codes, I’ll customize and provide an updated SVG.
